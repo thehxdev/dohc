@@ -2,10 +2,6 @@
 dohc is a DoH server scanner. With this tool you can check wich DoH servers are working on your network.
 
 
-## Download
-Check [releases page](https://github.com/thehxdev/dohc/releases/latest) to download binary packages.
-
-
 ## Build
 
 ### Linux / macOS
