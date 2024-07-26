@@ -20,13 +20,10 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-const (
-	LOCAL_RESOLVER = "9.9.9.9"
-)
-
 var (
-	Limit       int
-	serversFile string
+	limit         int
+	serversFile   string
+	localResolver string
 )
 
 func main() {
@@ -42,7 +39,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	limitCh := make(chan bool, Limit)
+	limitCh := make(chan bool, limit)
 	scanner := bufio.NewScanner(fd)
 	c := createHttpClient()
 	mu := &sync.Mutex{}
@@ -103,7 +100,8 @@ func main() {
 
 func configureCmdFlags() {
 	flag.StringVar(&serversFile, "f", "doh_servers.txt", "path to servers list file")
-	flag.IntVar(&Limit, "l", max(1, runtime.NumCPU()), "this number of doh servers will be checked concurrently")
+	flag.StringVar(&localResolver, "r", "9.9.9.9", "local DNS resolver (to resolve DoH addresses)")
+	flag.IntVar(&limit, "l", max(1, runtime.NumCPU()), "this number of doh servers will be checked concurrently")
 	flag.Parse()
 }
 
@@ -113,7 +111,7 @@ func createHttpClient() *http.Client {
 		Resolver: &net.Resolver{
 			PreferGo: true,
 			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-				return net.Dial(network, net.JoinHostPort(LOCAL_RESOLVER, "53"))
+				return net.Dial(network, net.JoinHostPort(localResolver, "53"))
 			},
 		},
 	}
