@@ -27,7 +27,7 @@ var (
 )
 
 func main() {
-	err := os.Setenv("GOGC", "10")
+	err := os.Setenv("GOGC", "50")
 	if err != nil {
 		log.Fatal(err)
 	}
