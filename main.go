@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-    defer fd.Close()
+	defer fd.Close()
 
 	limitCh := make(chan bool, limit)
 	scanner := bufio.NewScanner(fd)
