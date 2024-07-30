@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 cmds=(jq tr cut)
 for cmd in $cmds; do
@@ -9,7 +9,7 @@ for cmd in $cmds; do
 done
 
 
-JSON_DATA_FILE="./doh_resolvers_data_20240119.json"
-OUTPUT_FILE="./doh_servers.txt"
+JSON_DATA_FILE="$1"
+OUTPUT_FILE="$2"
 
 jq 'map(.uri)' $JSON_DATA_FILE | jq '.[]' | tr -d '"' > $OUTPUT_FILE
