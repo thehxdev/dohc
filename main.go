@@ -24,6 +24,7 @@ var (
 	limit         int
 	serversFile   string
 	localResolver string
+	outFileName   string
 )
 
 func main() {
@@ -85,8 +86,6 @@ func main() {
 	wg.Wait()
 
 	fmt.Printf("%+v\n\n", workingDomains)
-
-	outFileName := "results_" + strings.ReplaceAll(string(time.Now().Format(time.DateTime)), " ", "_") + "_.txt"
 	outFile, err := os.Create(outFileName)
 	if err != nil {
 		log.Fatal(err)
@@ -102,6 +101,7 @@ func main() {
 func configureCmdFlags() {
 	flag.StringVar(&serversFile, "f", "doh_servers.txt", "path to servers list file")
 	flag.StringVar(&localResolver, "r", "9.9.9.9", "local DNS resolver (to resolve DoH addresses)")
+	flag.StringVar(&outFileName, "o", "results.txt", "path to save scan results")
 	flag.IntVar(&limit, "l", max(1, runtime.NumCPU()), "this number of doh servers will be checked concurrently")
 	flag.Parse()
 }
