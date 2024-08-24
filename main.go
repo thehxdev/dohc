@@ -41,7 +41,7 @@ func main() {
 	}
 	defer fd.Close()
 
-	limitCh := make(chan bool, limit)
+	limitCh := make(chan struct{}, limit)
 	scanner := bufio.NewScanner(fd)
 	c := createHttpClient()
 	mu := &sync.Mutex{}
@@ -55,7 +55,7 @@ func main() {
 		go func(domain string) {
 			defer wg.Done()
 
-			limitCh <- false
+			limitCh <- struct{}{}
 			defer deque(limitCh)
 
 			req, err := http.NewRequestWithContext(context.Background(), "POST", line, createDNSPacket())
@@ -152,6 +152,6 @@ func createDNSPacket() *bytes.Buffer {
 	return buff
 }
 
-func deque(ch <-chan bool) {
+func deque(ch <-chan struct{}) {
 	<-ch
 }
