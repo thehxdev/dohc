@@ -53,7 +53,7 @@ func main() {
 	c := createHttpClient()
 	mu := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
-	workingDomains := make([]Result, 0)
+	results := make([]Result, 0)
 
 	for scanner.Scan() {
 		wg.Add(1)
@@ -87,7 +87,7 @@ func main() {
 			if resp.StatusCode == http.StatusOK {
 				log.Printf("[OK] %4d - %s\n", deltaTime.Milliseconds(), dohAddr)
 				mu.Lock()
-				workingDomains = append(workingDomains, Result{Duration: deltaTime, addr: dohAddr})
+				results = append(results, Result{Duration: deltaTime, addr: dohAddr})
 				mu.Unlock()
 			}
 		}(line)
@@ -99,7 +99,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, r := range workingDomains {
+	for _, r := range results {
 		outFile.Write(fmt.Appendf([]byte{}, "%4d %s\n", r.Duration.Milliseconds(), r.addr))
 	}
 
