@@ -27,12 +27,19 @@ var (
 	outFileName   string
 )
 
-func main() {
+func init() {
 	err := os.Setenv("GOGC", "50")
 	if err != nil {
 		log.Fatal(err)
 	}
+}
 
+type Result struct {
+	time.Duration
+	addr string
+}
+
+func main() {
 	configureCmdFlags()
 
 	fd, err := os.Open(serversFile)
@@ -46,17 +53,21 @@ func main() {
 	c := createHttpClient()
 	mu := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
-	workingDomains := make([]string, 0)
+	workingDomains := make([]Result, 0)
 
 	for scanner.Scan() {
 		wg.Add(1)
 		line := strings.TrimSpace(scanner.Text())
 
-		go func(domain string) {
+		go func(dohAddr string) {
 			defer wg.Done()
 
 			limitCh <- struct{}{}
-			defer deque(limitCh)
+			defer func(){
+				<-limitCh
+			}()
+
+			start := time.Now()
 
 			req, err := http.NewRequestWithContext(context.Background(), "POST", line, createDNSPacket())
 			if err != nil {
@@ -68,31 +79,28 @@ func main() {
 
 			resp, err := c.Do(req)
 			if err != nil {
-				log.Printf("[FAIL] %s\n", domain)
 				return
 			}
+			deltaTime := time.Now().Sub(start)
 			defer resp.Body.Close()
 
 			if resp.StatusCode == http.StatusOK {
-				log.Printf("[OK] %s\n", domain)
+				log.Printf("[OK] %4d - %s\n", deltaTime.Milliseconds(), dohAddr)
 				mu.Lock()
-				workingDomains = append(workingDomains, domain)
+				workingDomains = append(workingDomains, Result{Duration: deltaTime, addr: dohAddr})
 				mu.Unlock()
-			} else {
-				log.Printf("[FAIL] %s\n", domain)
 			}
 		}(line)
 	}
 	wg.Wait()
 
-	fmt.Printf("%+v\n\n", workingDomains)
 	outFile, err := os.Create(outFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, server := range workingDomains {
-		outFile.Write([]byte(server + "\n"))
+	for _, r := range workingDomains {
+		outFile.Write(fmt.Appendf([]byte{}, "%4d %s\n", r.Duration.Milliseconds(), r.addr))
 	}
 
 	log.Println("wrote results to", outFileName)
@@ -100,7 +108,7 @@ func main() {
 
 func configureCmdFlags() {
 	flag.StringVar(&serversFile, "f", "doh_servers.txt", "path to servers list file")
-	flag.StringVar(&localResolver, "r", "9.9.9.9", "local DNS resolver (to resolve DoH addresses)")
+	flag.StringVar(&localResolver, "r", "9.9.9.9", "local DNS resolver (to resolve DoH domain names)")
 	flag.StringVar(&outFileName, "o", "results.txt", "path to save scan results")
 	flag.IntVar(&limit, "l", max(1, runtime.NumCPU()), "this number of doh servers will be checked concurrently")
 	flag.Parse()
@@ -118,7 +126,7 @@ func createHttpClient() *http.Client {
 	}
 
 	return &http.Client{
-		Timeout: time.Second * 10,
+		Timeout: time.Second * 5,
 		Transport: &http.Transport{
 			DialContext: dialer.DialContext,
 		},
@@ -131,7 +139,7 @@ func createDNSPacket() *bytes.Buffer {
 		QR:      true,
 		OpCode:  0,
 		QDCount: 1,
-		ANCount: 1,
+		ANCount: 0,
 		RD:      true,
 		RA:      true,
 		Questions: []layers.DNSQuestion{
@@ -145,13 +153,8 @@ func createDNSPacket() *bytes.Buffer {
 
 	serializeBuff := gopacket.NewSerializeBuffer()
 	dns.SerializeTo(serializeBuff, gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: false})
-	inBytes := serializeBuff.Bytes()
 
 	buff := &bytes.Buffer{}
-	buff.Write(inBytes)
+	buff.Write(serializeBuff.Bytes())
 	return buff
-}
-
-func deque(ch <-chan struct{}) {
-	<-ch
 }
